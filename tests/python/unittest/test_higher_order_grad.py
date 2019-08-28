@@ -51,6 +51,41 @@ def test_cos():
 
 
 @with_seed()
+def test_tan():
+    def tan(x):
+        return nd.tan(x)
+
+    def grad_op(x):
+        return 1 / nd.cos(x)**2
+
+    def grad_grad_op(x):
+        return 2 * tan(x) * grad_op(x)
+
+    for dim in range(1, 5):
+        shape = rand_shape_nd(dim)
+        array = random_arrays(shape)
+        check_second_order_unary(array, tan, grad_grad_op)
+
+
+@with_seed()
+def test_tanh():
+    def tanh(x):
+        return nd.tanh(x)
+
+    def grad_op(x):
+        return 1 / nd.cosh(x)**2
+
+    def grad_grad_op(x):
+        return -2 * tanh(x) * grad_op(x)
+
+    for dim in range(1, 5):
+        shape = rand_shape_nd(dim)
+        array = random_arrays(shape)
+        check_second_order_unary(
+            array, tanh, grad_grad_op, rtol=1e-6, atol=1e-6)
+
+
+@with_seed()
 def test_relu():
     def relu(x):
         return nd.relu(x)
@@ -106,15 +141,73 @@ def test_log10():
         check_second_order_unary(array, log10, grad_grad_op)
 
 
-def check_second_order_unary(x, op, grad_grad_op):
+@with_seed()
+def test_reciprocal():
+    def reciprocal(x):
+        return nd.reciprocal(x)
+
+    def grad_grad_op(x):
+        return 2 / x**3
+
+    for dim in range(1, 5):
+        shape = rand_shape_nd(dim)
+        array = random_arrays(shape)
+        check_second_order_unary(array, reciprocal, grad_grad_op)
+
+
+@with_seed()
+def test_abs():
+    def abs(x):
+        return nd.abs(x)
+
+    def grad_grad_op(x):
+        return nd.zeros_like(x)
+
+    for dim in range(1, 5):
+        shape = rand_shape_nd(dim)
+        array = random_arrays(shape)
+        check_second_order_unary(array, abs, grad_grad_op)
+
+
+def test_sigmoid():
+    def sigmoid(x):
+        return nd.sigmoid(x)
+
+    def grad_op(x):
+        return sigmoid(x) * (1 - sigmoid(x))
+
+    def grad_grad_op(x):
+        return grad_op(x) * (1 - 2 * sigmoid(x))
+
+    for dim in range(1, 5):
+        shape = rand_shape_nd(dim)
+        array = random_arrays(shape)
+        check_second_order_unary(array, sigmoid, grad_grad_op)
+
+
+def check_second_order_unary(x, op, grad_grad_op, rtol=None, atol=None):
     x = nd.array(x)
-    expect_grad_grad = grad_grad_op(x)
+    grad_grad_x = grad_grad_op(x)
     x.attach_grad()
+
+    # Manual head_grads.
+    y_grad = nd.random.normal(shape=x.shape)
+    head_grad_grads = nd.random.normal(shape=x.shape)
+
+    # Perform compute.
     with autograd.record():
         y = op(x)
-        y_grad = autograd.grad(y, x, create_graph=True, retain_graph=True)[0]
-    y_grad.backward()
-    assert_almost_equal(expect_grad_grad.asnumpy(), x.grad.asnumpy())
+        x_grad = autograd.grad(heads=y, variables=x, head_grads=y_grad,
+                               create_graph=True, retain_graph=True)[0]
+    x_grad.backward(head_grad_grads)
+
+    # Compute expected values.
+    expected_grad_grad = grad_grad_x.asnumpy() * head_grad_grads.asnumpy() * \
+        y_grad.asnumpy()
+
+    # Validate the gradients.
+    assert_almost_equal(expected_grad_grad,
+                        x.grad.asnumpy(), rtol=rtol, atol=atol)
 
 
 if __name__ == '__main__':
