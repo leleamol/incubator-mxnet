@@ -54,6 +54,7 @@ class Compose(Sequential):
         super(Compose, self).__init__()
         transforms.append(None)
         hybrid = []
+        self._hookable = False
         for i in transforms:
             if isinstance(i, HybridBlock):
                 hybrid.append(i)
@@ -63,6 +64,7 @@ class Compose(Sequential):
                 hybrid = []
             elif len(hybrid) > 1:
                 hblock = HybridSequential()
+                hblock._hookable = False
                 for j in hybrid:
                     hblock.add(j)
                 hblock.hybridize()
@@ -91,6 +93,7 @@ class Cast(HybridBlock):
     def __init__(self, dtype='float32'):
         super(Cast, self).__init__()
         self._dtype = dtype
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -135,6 +138,7 @@ class ToTensor(HybridBlock):
     """
     def __init__(self):
         super(ToTensor, self).__init__()
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -190,6 +194,7 @@ class Normalize(HybridBlock):
         super(Normalize, self).__init__()
         self._mean = mean
         self._std = std
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -230,6 +235,7 @@ class RandomResizedCrop(Block):
         if isinstance(size, numeric_types):
             size = (size, size)
         self._args = (size, scale, ratio, interpolation)
+        self._hookable = False
 
     def forward(self, x):
         return image.random_size_crop(x, *self._args)[0]
@@ -289,6 +295,7 @@ class CropResize(HybridBlock):
         self._height = height
         self._size = size
         self._interpolation = interpolation
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         out = F.image.crop(x, self._x, self._y, self._width, self._height)
@@ -328,6 +335,7 @@ class CenterCrop(Block):
         if isinstance(size, numeric_types):
             size = (size, size)
         self._args = (size, interpolation)
+        self._hookable = False
 
     def forward(self, x):
         return image.center_crop(x, *self._args)[0]
@@ -374,6 +382,7 @@ class Resize(HybridBlock):
         self._keep = keep_ratio
         self._size = size
         self._interpolation = interpolation
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -392,6 +401,7 @@ class RandomFlipLeftRight(HybridBlock):
     """
     def __init__(self):
         super(RandomFlipLeftRight, self).__init__()
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -411,6 +421,7 @@ class RandomFlipTopBottom(HybridBlock):
     """
     def __init__(self):
         super(RandomFlipTopBottom, self).__init__()
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -438,6 +449,7 @@ class RandomBrightness(HybridBlock):
     def __init__(self, brightness):
         super(RandomBrightness, self).__init__()
         self._args = (max(0, 1-brightness), 1+brightness)
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -465,6 +477,7 @@ class RandomContrast(HybridBlock):
     def __init__(self, contrast):
         super(RandomContrast, self).__init__()
         self._args = (max(0, 1-contrast), 1+contrast)
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -492,6 +505,7 @@ class RandomSaturation(HybridBlock):
     def __init__(self, saturation):
         super(RandomSaturation, self).__init__()
         self._args = (max(0, 1-saturation), 1+saturation)
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -519,6 +533,7 @@ class RandomHue(HybridBlock):
     def __init__(self, hue):
         super(RandomHue, self).__init__()
         self._args = (max(0, 1-hue), 1+hue)
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -555,6 +570,7 @@ class RandomColorJitter(HybridBlock):
     def __init__(self, brightness=0, contrast=0, saturation=0, hue=0):
         super(RandomColorJitter, self).__init__()
         self._args = (brightness, contrast, saturation, hue)
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():
@@ -580,6 +596,7 @@ class RandomLighting(HybridBlock):
     def __init__(self, alpha):
         super(RandomLighting, self).__init__()
         self._alpha = alpha
+        self._hookable = False
 
     def hybrid_forward(self, F, x):
         if is_np_array():

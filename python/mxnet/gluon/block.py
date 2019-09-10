@@ -38,6 +38,42 @@ from .. import numpy_extension as _mx_npx
 from .. import numpy as _mx_np
 from .. util import is_np_array, np_shape, np_array
 
+global_tornasole_hook = None
+register_to_block = False
+register_to_loss_block = False
+def run_once(f):
+    def wrapper(*args):
+        global function_has_run_once
+        if not function_has_run_once:
+            function_has_run_once = True
+            return f(*args)
+    global function_has_run_once
+    function_has_run_once = False
+    return wrapper
+
+#@run_once
+def _register_tornasole_hook(block):
+    global global_tornasole_hook
+    global register_to_block
+    if global_tornasole_hook is None:
+        from tornasole.mxnet.hook import TornasoleHook as t_hook
+        global_tornasole_hook = t_hook.hook_from_config()
+    if register_to_block is False:
+        global_tornasole_hook.register_hook(block)
+        register_to_block = True
+    return
+
+#@run_once
+def _register_tornasole_hook_to_loss(block):
+    global global_tornasole_hook
+    global register_to_loss_block
+    if global_tornasole_hook is None:
+        from tornasole.mxnet.hook import TornasoleHook as t_hook
+        global_tornasole_hook = t_hook.hook_from_config()
+    if register_to_loss_block is False:
+        global_tornasole_hook.register_hook(block)
+        register_to_loss_block = True
+    return
 
 class _BlockScope(object):
     """Scope for collecting child `Block` s."""
@@ -183,6 +219,7 @@ class Block(object):
         self._reg_params = {}
         self._forward_hooks = OrderedDict()
         self._forward_pre_hooks = OrderedDict()
+        self._hookable = True
 
     def __repr__(self):
         s = '{name}(\n{modstr}\n)'
@@ -566,6 +603,12 @@ class Block(object):
             param.cast(dtype)
 
     def __call__(self, *args):
+        if self._hookable:
+            _register_tornasole_hook(self)
+        from .loss import Loss
+        if self._hookable and isinstance(self, Loss):
+            _register_tornasole_hook_to_loss(self)
+
         """Calls forward. Only accepts positional arguments."""
         for hook in self._forward_pre_hooks.values():
             hook(self, args)
