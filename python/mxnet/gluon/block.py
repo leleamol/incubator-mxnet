@@ -37,40 +37,36 @@ from .utils import _check_same_symbol_type, _check_all_np_ndarrays
 from .. import numpy_extension as _mx_npx
 from .. import numpy as _mx_np
 from .. util import is_np_array, np_shape, np_array
+import os
 
 global_tornasole_hook = None
 register_to_block = False
 register_to_loss_block = False
-def run_once(f):
-    def wrapper(*args):
-        global function_has_run_once
-        if not function_has_run_once:
-            function_has_run_once = True
-            return f(*args)
-    global function_has_run_once
-    function_has_run_once = False
-    return wrapper
 
-#@run_once
-def _register_tornasole_hook(block):
+def is_sagemaker_job():
+    return 'TRAINING_JOB_NAME' in os.environ
+
+def create_global_tornasole_hook():
     global global_tornasole_hook
-    global register_to_block
     if global_tornasole_hook is None:
         from tornasole.mxnet.hook import TornasoleHook as t_hook
         global_tornasole_hook = t_hook.hook_from_config()
-    if register_to_block is False:
+    return
+
+def _register_tornasole_hook(block):
+    global global_tornasole_hook
+    global register_to_block
+    create_global_tornasole_hook()
+    if register_to_block is False and global_tornasole_hook:
         global_tornasole_hook.register_hook(block)
         register_to_block = True
     return
 
-#@run_once
 def _register_tornasole_hook_to_loss(block):
     global global_tornasole_hook
     global register_to_loss_block
-    if global_tornasole_hook is None:
-        from tornasole.mxnet.hook import TornasoleHook as t_hook
-        global_tornasole_hook = t_hook.hook_from_config()
-    if register_to_loss_block is False:
+    create_global_tornasole_hook()
+    if register_to_loss_block is False and global_tornasole_hook:
         global_tornasole_hook.register_hook(block)
         register_to_loss_block = True
     return
